@@ -1,17 +1,23 @@
 import asyncio
 
-async def lift_balls(name, lifts):
-    for i in range(1, lifts + 1):
-        print(f"Силач {name} поднял {i} шар")
-        await asyncio.sleep(1)  # Задержка в 1 секунду между подъемами
-    print(f"Силач {name} закончил соревнования")
+async def start_strongman(name, power):
+    print(f'Силач {name} начал соревнования.')
+    
+    for i in range(1, 6):
+        await asyncio.sleep(1 / power)  # Задержка обратно пропорциональна силе
+        print(f'Силач {name} поднял {i} шар')
+    
+    print(f'Силач {name} закончил соревнования.')
 
-async def main():
-    # Запускаем соревнование для Denis и Pasha
-    await asyncio.gather(
-        lift_balls("Denis", 5),
-        lift_balls("Pasha", 5)
-    )
+async def start_tournament():
+    tasks = [
+        start_strongman('Pasha', 3),
+        start_strongman('Denis', 4),
+        start_strongman('Apollon', 5)
+    ]
+    
+    # Ожидаем завершения всех задач
+    await asyncio.gather(*tasks)
 
-# Запускаем асинхронную функцию main
-asyncio.run(main())
+# Запуск асинхронной функции
+asyncio.run(start_tournament())
