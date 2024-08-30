@@ -3,13 +3,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 
-API_TOKEN = '7496069476:AAEmEJvx70OUkElm_JV8q4BypnswN3Nk0aA'  # Замените на ваш токен
+API_TOKEN = ''  # Замените на ваш токен
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
 # Создание объектов бота и диспетчера
-bot = Bot(token=7496069476:AAEmEJvx70OUkElm_JV8q4BypnswN3Nk0aA
+bot = Bot(token=
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
