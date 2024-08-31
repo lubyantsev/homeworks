@@ -7,13 +7,15 @@ API_TOKEN = 'YOUR_API_TOKEN'
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token='YOUR_API_TOKEN')
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     await message.answer('Привет! Я бот, помогающий твоему здоровью.')
+
 
 @dp.message_handler()
 async def all_messages(message: types.Message):
@@ -21,3 +23,5 @@ async def all_messages(message: types.Message):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
+
