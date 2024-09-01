@@ -59,12 +59,17 @@ async def process_schedule(callback_query: types.CallbackQuery):
 
 @dp.message_handler(state=ScheduleStates.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
-    name = message.text
-    day, hour = message.reply_to_message.text.split(" - ")[0], int(message.reply_to_message.text.split(" - Час ")[1].split(":")[0]) - 1
-    schedule[day][hour] = name
-    await state.finish()
-    await message.answer("Вы записаны на этот час!", reply_markup=get_schedule_keyboard())
-
+    if message.reply_to_message:
+        name = message.text
+        day_hour = message.reply_to_message.text.split(" - ")
+        day = day_hour[0]
+        hour = int(day_hour[1].split(" ")[1]) - 1
+        schedule[day][hour] = name
+        await state.finish()
+        await message.answer("Вы записаны на этот час!", reply_markup=get_schedule_keyboard())
+    else:
+        await message.answer("Произошла ошибка. Попробуйте снова.")
+        
 @dp.message_handler(lambda message: message.text.lower() in ["да", "нет"], state='*')
 async def process_free_time(message: types.Message, state: FSMContext):
     if message.text.lower() == "да":
