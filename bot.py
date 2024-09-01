@@ -76,3 +76,8 @@ async def process_free_time(message: types.Message, state: FSMContext):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
+ line 63, in process_name
+    day, hour = message.reply_to_message.text.split(" - ")[0], int(message.reply_to_message.text.split(" - Час ")[1].split(":")[0]) - 1
+AttributeError: 'NoneType' object has no attribute 'text'
+что делать?
