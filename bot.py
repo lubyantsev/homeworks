@@ -1,58 +1,55 @@
 import logging
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher import State
+from aiogram.utils import executor
 
-# Включаем логирование
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+API_TOKEN = 'YOUR_TOKEN_HERE'
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+
+# Создаем объекты бота и диспетчера
+bot = Bot(token=API_TOKEN)
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
 
 # Хранилище для времени
 available_time = 10
 
-# Команда /start
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(f'Добро пожаловать! У вас есть {available_time} единиц времени. '
-                              'Используйте /occupy для занятия времени и /release для его освобождения.')
+# Определяем состояния
+class Form(State):
+    waiting_for_action = State()
 
-# Команда для занятия времени
-def occupy(update: Update, context: CallbackContext) -> None:
+
+@dp.message_handler(commands=['start'])
+async def start_command(message: types.Message):
+    await message.reply(f'Добро пожаловать! У вас есть {available_time} единиц времени. '
+                         'Используйте /occupy для занятия времени и /release для его освобождения.')
+
+
+@dp.message_handler(commands=['occupy'])
+async def occupy_time(message: types.Message):
     global available_time
     if available_time > 0:
         available_time -= 1
-        update.message.reply_text(f'Вы заняли 1 единицу времени. Осталось {available_time}.')
+        await message.reply(f'Вы заняли 1 единицу времени. Осталось {available_time}.')
     else:
-        update.message.reply_text('Время закончилось. Пожалуйста, освободите время.')
+        await message.reply('Время закончилось. Пожалуйста, освободите время.')
 
-# Команда для освобождения времени
-def release(update: Update, context: CallbackContext) -> None:
+
+@dp.message_handler(commands=['release'])
+async def release_time(message: types.Message):
     global available_time
     available_time += 1
-    update.message.reply_text(f'Вы освободили 1 единицу времени. Осталось {available_time}.')
+    await message.reply(f'Вы освободили 1 единицу времени. Осталось {available_time}.')
 
-# Обработчик ошибок
-def error(update: Update, context: CallbackContext) -> None:
-    logger.warning(f'Update {update} caused error {context.error}')
 
-def main():
-    # Создаем Updater и передаем ему токен вашего бота
-    updater = Updater("YOUR_TOKEN_HERE")
+@dp.errors_handler()
+async def error_handler(update: types.Update, exception: Exception):
+    logging.error(f'Update: {update} caused error: {exception}')
 
-    # Получаем диспетчер для регистрации обработчиков
-    dispatcher = updater.dispatcher
-
-    # Регистрация команд
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("occupy", occupy))
-    dispatcher.add_handler(CommandHandler("release", release))
-
-    # Логирование ошибок
-    dispatcher.add_error_handler(error)
-
-    # Запускаем бота
-    updater.start_polling()
-
-    # Ожидаем завершения работы
-    updater.idle()
 
 if __name__ == '__main__':
-    main()
+    executor.start_polling(dp, skip_updates=True)
