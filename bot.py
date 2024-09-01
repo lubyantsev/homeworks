@@ -25,18 +25,18 @@ schedule = {
     "Среда": ["Свободно", "Свободно", "Свободно"],
     "Четверг": ["Свободно", "Свободно", "Свободно"],
     "Пятница": ["Свободно", "Свободно", "Свободно"],
+    "Суббота": ["Свободно", "Свободно", "Свободно"],
+    "Воскресенье": ["Свободно", "Свободно", "Свободно"],
 }
 
 # Функция для отображения расписания
 def get_schedule_keyboard():
     keyboard = types.InlineKeyboardMarkup()
     for day, hours in schedule.items():
-        day_buttons = []
         for i, status in enumerate(hours):
             button_text = f"{day} - Час {i + 1}: {status}"
             callback_data = f"{day}_{i}"
-            day_buttons.append(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
-        keyboard.add(*day_buttons)
+            keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
     return keyboard
 
 @dp.message_handler(commands='start')
@@ -54,15 +54,11 @@ async def process_schedule(callback_query: types.CallbackQuery):
         await bot.answer_callback_query(callback_query.id)
     else:
         name = schedule[day][hour]
-        await bot.send_message(callback_query.from_user.id, f"Этот час занят: {name}. Хотите освободить его? (Да/Нет)")
+        await bot.send_message(callback_query.from_user.id, f"Этот час занят: {name}. Хотите освободить его? (Да/Нет)", reply_markup=types.ReplyKeyboardMarkup(resize_keyboard=True).add("Да", "Нет"))
         await bot.answer_callback_query(callback_query.id)
 
 @dp.message_handler(state=ScheduleStates.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
-    if message.reply_to_message is None:
-        await message.answer("Пожалуйста, ответьте на сообщение бота, чтобы ввести ваше имя.")
-        return
-
     name = message.text
     day, hour = message.reply_to_message.text.split(" - ")[0], int(message.reply_to_message.text.split(" - Час ")[1].split(":")[0]) - 1
     schedule[day][hour] = name
@@ -72,8 +68,6 @@ async def process_name(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda message: message.text.lower() in ["да", "нет"], state='*')
 async def process_free_time(message: types.Message, state: FSMContext):
     if message.text.lower() == "да":
-        # Логика освобождения времени
-        # Найдем занятую ячейку в расписании
         day, hour = message.reply_to_message.text.split(" - ")[0], int(message.reply_to_message.text.split(" - Час ")[1].split(":")[0]) - 1
         schedule[day][hour] = "Свободно"
         await message.answer("Время освобождено.", reply_markup=get_schedule_keyboard())
