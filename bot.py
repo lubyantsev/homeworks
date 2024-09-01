@@ -1,11 +1,9 @@
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher import filters
+from aiogram.dispatcher import FSMContext, State, StatesGroup
 from aiogram.utils import executor
-from aiogram.dispatcher import FSMContext, State
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.dispatcher import filters
 
 API_TOKEN = 'YOUR_API_TOKEN'
 
@@ -17,8 +15,8 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-# Состояния
-class FormState(State):
+# Определение состояний
+class FormState(StatesGroup):
     enter_name = State()
 
 # Расписание
@@ -32,17 +30,17 @@ schedule = {
 
 # Функция для создания клавиатуры
 def create_schedule_keyboard():
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    for day, hours in schedule.items():
-        keyboard.add(KeyboardButton(day))
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for day in schedule.keys():
+        keyboard.add(types.KeyboardButton(day))
     return keyboard
 
 def create_hours_keyboard(day):
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for hour in range(3):
         button_text = f"{hour + 1} - {schedule[day][hour]}"
-        keyboard.add(KeyboardButton(button_text))
-    keyboard.add(KeyboardButton("Назад"))
+        keyboard.add(types.KeyboardButton(button_text))
+    keyboard.add(types.KeyboardButton("Назад"))
     return keyboard
 
 @dp.message_handler(commands=['start'])
