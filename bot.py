@@ -4,7 +4,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ContextT
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Исправьте 'name' на '__name__'
 
 # Расписание на неделю
 schedule = {
@@ -19,7 +19,7 @@ schedule = {
 booked_slots = {day: [None] * len(times) for day, times in schedule.items()}
 
 # Функция для отображения расписания
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes) -> None:  # Измените здесь
     keyboard = []
     for day, times in schedule.items():
         buttons = []
@@ -35,7 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Выберите день и время:', reply_markup=reply_markup)
 
 # Обработка нажатий на кнопки
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def button(update: Update, context: ContextTypes) -> None:  # Измените здесь
     query = update.callback_query
     await query.answer()
     
@@ -52,7 +52,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         context.user_data['unbooking'] = (day, index)
 
 # Обработка ввода имени
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_message(update: Update, context: ContextTypes) -> None:  # Измените здесь
     if 'booking' in context.user_data:
         day, index = context.user_data['booking']
         name = update.message.text
@@ -84,6 +84,6 @@ async def main() -> None:
     # Ожидаем завершения работы
     await updater.idle()
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # Исправьте 'name' на '__name__'
     import asyncio
     asyncio.run(main())
