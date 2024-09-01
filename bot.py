@@ -1,89 +1,92 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher import filters
+from aiogram.utils import executor
+from aiogram.dispatcher import FSMContext, State
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-# Включаем логирование
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)  # Исправьте 'name' на '__name__'
+API_TOKEN = 'YOUR_API_TOKEN'
 
-# Расписание на неделю
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+
+# Инициализация бота и диспетчера
+bot = Bot(token=API_TOKEN)
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
+
+# Состояния
+class FormState(State):
+    enter_name = State()
+
+# Расписание
 schedule = {
-    'Понедельник': ['09:00', '10:00', '11:00'],
-    'Вторник': ['09:00', '10:00', '11:00'],
-    'Среда': ['09:00', '10:00', '11:00'],
-    'Четверг': ['09:00', '10:00', '11:00'],
-    'Пятница': ['09:00', '10:00', '11:00'],
+    "Monday": ["Free", "Free", "Free"],
+    "Tuesday": ["Free", "Free", "Free"],
+    "Wednesday": ["Free", "Free", "Free"],
+    "Thursday": ["Free", "Free", "Free"],
+    "Friday": ["Free", "Free", "Free"],
 }
 
-# Словарь для хранения занятых часов
-booked_slots = {day: [None] * len(times) for day, times in schedule.items()}
+# Функция для создания клавиатуры
+def create_schedule_keyboard():
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    for day, hours in schedule.items():
+        keyboard.add(KeyboardButton(day))
+    return keyboard
 
-# Функция для отображения расписания
-async def start(update: Update, context: ContextTypes) -> None:  # Измените здесь
-    keyboard = []
-    for day, times in schedule.items():
-        buttons = []
-        for i, time in enumerate(times):
-            status = booked_slots[day][i]
-            if status is None:
-                button_text = time + " (Свободно)"
-            else:
-                button_text = time + f" (Занято: {status})"
-            buttons.append(InlineKeyboardButton(button_text, callback_data=f"{day}_{i}"))
-        keyboard.append(buttons)
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text('Выберите день и время:', reply_markup=reply_markup)
+def create_hours_keyboard(day):
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    for hour in range(3):
+        button_text = f"{hour + 1} - {schedule[day][hour]}"
+        keyboard.add(KeyboardButton(button_text))
+    keyboard.add(KeyboardButton("Назад"))
+    return keyboard
 
-# Обработка нажатий на кнопки
-async def button(update: Update, context: ContextTypes) -> None:  # Измените здесь
-    query = update.callback_query
-    await query.answer()
-    
-    day, index = query.data.split('_')
-    index = int(index)
-    
-    if booked_slots[day][index] is None:
-        # Бронирование
-        await query.message.reply_text("Введите ваше имя:")
-        context.user_data['booking'] = (day, index)
+@dp.message_handler(commands=['start'])
+async def start_command(message: types.Message):
+    await message.answer("Выберите день недели:", reply_markup=create_schedule_keyboard())
+
+@dp.message_handler(filters.Text(equals=list(schedule.keys())))
+async def show_hours(message: types.Message):
+    day = message.text
+    await message.answer(f"Часы для {day}:", reply_markup=create_hours_keyboard(day))
+
+@dp.message_handler(filters.Text(startswith=[f"{i + 1} - " for i in range(3)]))
+async def occupy_hour(message: types.Message):
+    day = message.reply_to_message.text.split(" ")[-1]
+    hour_index = int(message.text.split(" ")[0]) - 1
+    current_status = schedule[day][hour_index]
+
+    if current_status == "Free":
+        await FormState.enter_name.set()
+        await message.answer("Введите ваше имя:")
+        await message.answer(f"Вы заняли {day} {hour_index + 1} час.")
     else:
-        # Освобождение
-        await query.message.reply_text("Вы хотите освободить это время? (Да/Нет)")
-        context.user_data['unbooking'] = (day, index)
+        await message.answer(f"{day} {hour_index + 1} уже занят именем '{current_status}'.\nХотите освободить это время? (да/нет)")
 
-# Обработка ввода имени
-async def handle_message(update: Update, context: ContextTypes) -> None:  # Измените здесь
-    if 'booking' in context.user_data:
-        day, index = context.user_data['booking']
-        name = update.message.text
-        booked_slots[day][index] = name
-        del context.user_data['booking']
-        await start(update, context)
-    elif 'unbooking' in context.user_data:
-        day, index = context.user_data['unbooking']
-        if update.message.text.lower() in ['да', 'yes']:
-            booked_slots[day][index] = None
-        del context.user_data['unbooking']
-        await start(update, context)
+@dp.message_handler(state=FormState.enter_name)
+async def process_name(message: types.Message, state: FSMContext):
+    name = message.text
+    day = message.reply_to_message.text.split(" ")[-1]
+    hour_index = int(message.reply_to_message.text.split(" ")[0]) - 1
 
-async def main() -> None:
-    # Вставьте свой токен ниже
-    updater = Updater("YOUR_TOKEN_HERE")
+    schedule[day][hour_index] = name
+    await state.finish()
+    await message.answer(f"Вы успешно заняли {day} {hour_index + 1} час. Ваше имя: {name}")
 
-    # Получаем диспетчер для регистрации обработчиков
-    dispatcher = updater.dispatcher
+@dp.message_handler(lambda message: message.text.lower() in ["да", "нет"])
+async def handle_confirmation(message: types.Message):
+    if message.text.lower() == "да":
+        # Здесь нужно освободить время
+        day = message.reply_to_message.text.split(" ")[-1]
+        hour_index = int(message.reply_to_message.text.split(" ")[0]) - 1
+        schedule[day][hour_index] = "Free"
+        await message.answer(f"{day} {hour_index + 1} час освобожден.")
+    else:
+        await message.answer("Время не освобождено.")
 
-    # Обработчики команд
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CallbackQueryHandler(button))
-    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Запускаем бота
-    await updater.start_polling()
-
-    # Ожидаем завершения работы
-    await updater.idle()
-
-if __name__ == '__main__':  # Исправьте 'name' на '__name__'
-    import asyncio
-    asyncio.run(main())
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
