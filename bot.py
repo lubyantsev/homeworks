@@ -1,6 +1,6 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -19,7 +19,7 @@ schedule = {
 booked_slots = {day: [None] * len(times) for day, times in schedule.items()}
 
 # Функция для отображения расписания
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = []
     for day, times in schedule.items():
         buttons = []
@@ -32,41 +32,41 @@ def start(update: Update, context: CallbackContext) -> None:
             buttons.append(InlineKeyboardButton(button_text, callback_data=f"{day}_{i}"))
         keyboard.append(buttons)
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('Выберите день и время:', reply_markup=reply_markup)
+    await update.message.reply_text('Выберите день и время:', reply_markup=reply_markup)
 
 # Обработка нажатий на кнопки
-def button(update: Update, context: CallbackContext) -> None:
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    query.answer()
+    await query.answer()
     
     day, index = query.data.split('_')
     index = int(index)
     
     if booked_slots[day][index] is None:
         # Бронирование
-        query.message.reply_text("Введите ваше имя:")
+        await query.message.reply_text("Введите ваше имя:")
         context.user_data['booking'] = (day, index)
     else:
         # Освобождение
-        query.message.reply_text("Вы хотите освободить это время? (Да/Нет)")
+        await query.message.reply_text("Вы хотите освободить это время? (Да/Нет)")
         context.user_data['unbooking'] = (day, index)
 
 # Обработка ввода имени
-def handle_message(update: Update, context: CallbackContext) -> None:
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if 'booking' in context.user_data:
         day, index = context.user_data['booking']
         name = update.message.text
         booked_slots[day][index] = name
         del context.user_data['booking']
-        start(update, context)
+        await start(update, context)
     elif 'unbooking' in context.user_data:
         day, index = context.user_data['unbooking']
         if update.message.text.lower() in ['да', 'yes']:
             booked_slots[day][index] = None
         del context.user_data['unbooking']
-        start(update, context)
+        await start(update, context)
 
-def main() -> None:
+async def main() -> None:
     # Вставьте свой токен ниже
     updater = Updater("YOUR_TOKEN_HERE")
 
@@ -76,13 +76,14 @@ def main() -> None:
     # Обработчики команд
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CallbackQueryHandler(button))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Запускаем бота
-    updater.start_polling()
+    await updater.start_polling()
 
     # Ожидаем завершения работы
-    updater.idle()
+    await updater.idle()
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
