@@ -10,29 +10,33 @@ API_TOKEN = 'TOKEN'
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token='TOKEN')
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+
 
 class UserState(StatesGroup):
     age = State()
     growth = State()
     weight = State()
 
-# Создаем клавиатуру с кнопками
+
 keyboard_markup = ReplyKeyboardMarkup(resize_keyboard=True)
 btn_calculate = KeyboardButton('Рассчитать')
 btn_info = KeyboardButton('Информация')
 keyboard_markup.add(btn_calculate, btn_info)
 
+
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
-    await message.answer("Привет! Нажмите 'Рассчитать', чтобы начать.", reply_markup=keyboard_markup)
+    await message.answer("Я бот, помогающий здоровью. Нажми 'Рассчитать', чтобы начать.", reply_markup=keyboard_markup)
+
 
 @dp.message_handler(lambda message: message.text.lower() == 'рассчитать')
 async def set_age(message: types.Message):
     await UserState.age.set()
     await message.answer("Введите свой возраст:")
+
 
 @dp.message_handler(state=UserState.age)
 async def set_growth(message: types.Message, state: FSMContext):
@@ -40,15 +44,17 @@ async def set_growth(message: types.Message, state: FSMContext):
     await UserState.growth.set()
     await message.answer("Введите свой рост:")
 
+
 @dp.message_handler(state=UserState.growth)
 async def set_weight(message: types.Message, state: FSMContext):
     await state.update_data(growth=message.text)
     await UserState.weight.set()
     await message.answer("Введите свой вес:")
 
+
 @dp.message_handler(state=UserState.weight)
 async def send_calories(message: types.Message, state: FSMContext):
-    await state.update_data(weight=message.text)  # Сохраняем вес
+    await state.update_data(weight=message.text)
     data = await state.get_data()
 
     age = int(data['age'])
