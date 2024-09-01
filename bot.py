@@ -1,57 +1,52 @@
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
-from collections import defaultdict
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
 
-# Инициализация доступных часов
-available_hours = {f"{i}:00": True for i in range(9, 24)}  # Часы с 9:00 до 23:00
-students_schedule = defaultdict(list)  # Словарь для хранения расписаний студентов
+# Включаем логирование
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Добро пожаловать! Используйте /reserve <часы> для резервирования времени или /free <часы> для освобождения.")
+# Списки часов и зарезервированных часов
+hours = [f"{i}:00" for i in range(15)]
+reserved_hours = set()
 
-def reserve(update: Update, context: CallbackContext):
-    student_name = update.message.from_user.username
-    if len(context.args) != 1:
-        update.message.reply_text("Используйте: /reserve <часы>, например: /reserve 10:00")
-        return
-    
-    hour = context.args[0]
-    if hour in available_hours and available_hours[hour]:
-        available_hours[hour] = False
-        students_schedule[student_name].append(hour)
-        update.message.reply_text(f"Вы зарезервировали {hour}.")
-    else:
-        update.message.reply_text("Этот час уже занят или не существует.")
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Добро пожаловать! Используйте /schedule для просмотра расписания.')
 
-def free(update: Update, context: CallbackContext):
-    student_name = update.message.from_user.username
-    if len(context.args) != 1:
-        update.message.reply_text("Используйте: /free <часы>, например: /free 10:00")
-        return
-    
-    hour = context.args[0]
-    if hour in students_schedule[student_name]:
-        available_hours[hour] = True
-        students_schedule[student_name].remove(hour)
-        update.message.reply_text(f"Вы освободили {hour}.")
-    else:
-        update.message.reply_text("Вы не зарезервировали этот час.")
+def schedule(update: Update, context: CallbackContext) -> None:
+    keyboard = []
+    for hour in hours:
+        if hour in reserved_hours:
+            button = InlineKeyboardButton(f"{hour} (занято)", callback_data=f"free_{hour}")
+        else:
+            button = InlineKeyboardButton(f"{hour} (свободно)", callback_data=f"reserve_{hour}")
+        keyboard.append([button])
 
-def status(update: Update, context: CallbackContext):
-    response = "Доступные часы:\n"
-    for hour, is_available in available_hours.items():
-        status = "Свободно" if is_available else "Занято"
-        response += f"{hour}: {status}\n"
-    update.message.reply_text(response)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text('Выберите час:', reply_markup=reply_markup)
 
-def main():
-    updater = Updater("YOUR_TELEGRAM_BOT_TOKEN")  # Замените на токен вашего бота
+def button(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    action, hour = query.data.split('_')
+
+    if action == "reserve":
+        if len(reserved_hours) < 15:
+            reserved_hours.add(hour)
+            query.edit_message_text(text=f"Час {hour} зарезервирован.")
+        else:
+            query.edit_message_text(text="Все часы заняты!")
+    elif action == "free":
+        reserved_hours.remove(hour)
+        query.edit_message_text(text=f"Час {hour} освобожден.")
+
+def main() -> None:
+    # Вставьте свой токен здесь
+    updater = Updater("YOUR_TOKEN_HERE")
+
     dp = updater.dispatcher
-
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("reserve", reserve))
-    dp.add_handler(CommandHandler("free", free))
-    dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(CommandHandler("schedule", schedule))
+    dp.add_handler(CallbackQueryHandler(button))
 
     updater.start_polling()
     updater.idle()
