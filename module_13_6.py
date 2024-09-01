@@ -10,7 +10,7 @@ API_TOKEN = 'TOKEN'
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token='TOKEN')
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -21,13 +21,11 @@ class UserState(StatesGroup):
     weight = State()
 
 
-# Создаем основное меню
 keyboard_markup = ReplyKeyboardMarkup(resize_keyboard=True)
 btn_calculate = KeyboardButton('Рассчитать')
 btn_info = KeyboardButton('Информация')
 keyboard_markup.add(btn_calculate, btn_info)
 
-# Создаем Inline клавиатуру
 inline_keyboard_markup = InlineKeyboardMarkup()
 btn_calories = InlineKeyboardButton('Рассчитать норму калорий', callback_data='calories')
 btn_formulas = InlineKeyboardButton('Формулы расчёта', callback_data='formulas')
@@ -41,22 +39,22 @@ async def start(message: types.Message):
 
 @dp.message_handler(lambda message: message.text.lower() == 'рассчитать')
 async def main_menu(message: types.Message):
-    await message.answer("Выберите опцию:", reply_markup=inline_keyboard_markup)
+    await message.answer("Выбери опцию:", reply_markup=inline_keyboard_markup)
 
 
 @dp.callback_query_handler(lambda call: call.data == 'formulas')
 async def get_formulas(call: types.CallbackQuery):
-    # Формула расчёта Миффлина-Сан Жеора
+
     formula = "Формула Миффлина-Сан Жеора:\n\nДля мужчин:\nBMR = 10 * вес (кг) + 6.25 * рост (см) - 5 * возраст (лет) + 5\n\nДля женщин:\nBMR = 10 * вес (кг) + 6.25 * рост (см) - 5 * возраст (лет) - 161"
     await bot.send_message(call.message.chat.id, formula)
-    await call.answer()  # Убираем уведомление о нажатии кнопки
+    await call.answer()
 
 
 @dp.callback_query_handler(lambda call: call.data == 'calories')
 async def set_age(call: types.CallbackQuery):
     await UserState.age.set()
     await bot.send_message(call.message.chat.id, "Введите свой возраст:")
-    await call.answer()  # Убираем уведомление о нажатии кнопки
+    await call.answer()
 
 
 @dp.message_handler(state=UserState.age)
@@ -90,3 +88,5 @@ async def send_calories(message: types.Message, state: FSMContext):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
+
